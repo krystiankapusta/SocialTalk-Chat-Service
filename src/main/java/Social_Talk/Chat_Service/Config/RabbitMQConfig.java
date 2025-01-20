@@ -45,7 +45,7 @@ public class RabbitMQConfig {
         return rabbitTemplate;
     }
 
-    @Bean // type of exchange
+    @Bean
     public DirectExchange chatExchange() {
         return new DirectExchange(chat_exchange);
     }

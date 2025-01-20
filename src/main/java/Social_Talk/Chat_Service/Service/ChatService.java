@@ -40,8 +40,14 @@ public class ChatService {
         this.messageRepository = messageRepository;
     }
 
-    public void sendMessage(int senderId, int receiverId, String content) {
+    public String removeQuotes(String content) {
+        if (content != null && content.startsWith("\"") && content.endsWith("\"")) {
+            return content.substring(1, content.length() - 1);
+        }
+        return content;
+    }
 
+    public void sendMessage(int senderId, int receiverId, String content) {
         String url = urlFriendsService + senderId + "&userId2=" + receiverId;
         String jwtToken = SecurityContextHolder.getContext().getAuthentication().getCredentials().toString();
 
@@ -59,7 +65,7 @@ public class ChatService {
                 throw new IllegalArgumentException("Users are not friends!");
             }
         } catch (Exception e) {
-            System.err.println("Error while verifying friendship: " + e.getMessage());
+            logger.error("Error while verifying friendship: {}", e.getMessage());
             throw e;
         }
 
@@ -67,7 +73,9 @@ public class ChatService {
             throw new IllegalArgumentException("Sender and receiver cannot be the same.");
         }
 
-        if (content == null || content.trim().isEmpty()) {
+        String fixedContent = removeQuotes(content);
+
+        if (fixedContent == null || fixedContent.trim().isEmpty()) {
             throw new IllegalArgumentException("Content cannot be empty.");
         }
 
@@ -75,7 +83,7 @@ public class ChatService {
             Message message = new Message();
             message.setSenderId(senderId);
             message.setReceiverId(receiverId);
-            message.setContent(content);
+            message.setContent(fixedContent);
             message.setSentMessageAt(LocalDateTime.now());
 
             messageRepository.save(message);
@@ -85,10 +93,10 @@ public class ChatService {
                     RabbitMQConfig.chat_routing_key,
                     message
             );
-            System.out.println("Message has been sent to queue: " + RabbitMQConfig.chat_queue);
+            logger.info("Message has been sent to queue: {}", RabbitMQConfig.chat_queue);
 
         } catch (Exception e) {
-            logger.error("Error while sending message: ", e);
+            logger.error("Error while sending message: {}", e.getMessage());
             throw e;
         }
     }
